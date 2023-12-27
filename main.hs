@@ -12,7 +12,7 @@ data Inst =
 type Code = [Inst]
 
 -- Define the variable types of Stack
-data StackDataType = IntValue Integer | TT | FF deriving (Show, Eq)
+data StackDataType = IntValue Integer | BoolValue Bool deriving (Show, Eq)
 
 
 -- Define the types Stack and State
@@ -24,8 +24,10 @@ createEmptyStack = []
 
 convertFromStackStr :: StackDataType -> String
 convertFromStackStr (IntValue x) = show x
-convertFromStackStr TT = "True"
-convertFromStackStr FF = "False"
+convertFromStackStr (BoolValue x) = case x of
+  True -> "tt"
+  False -> "ff"
+
 
 stack2Str :: Stack -> String   --[1,2,3,4] -> "4,3,2,1"
 stack2Str [] = ""
@@ -46,8 +48,8 @@ state2Str state =
   tail . foldr (\(key, value) acc -> "," ++ key ++ "=" ++ convertFromStackStr value ++ acc) "" $ 
   sortBy compareFst state
 
-test1 = stack2Str [IntValue 1, IntValue 2, TT]
-test2 = state2Str [("x", IntValue 1), ("z", IntValue 2), ("y", TT)]
+test1 = stack2Str [IntValue 1, IntValue 2, BoolValue True]
+test2 = state2Str [("x", IntValue 1), ("z", IntValue 2), ("y", BoolValue True)]
 
 run :: (Code, Stack, State) -> (Code, Stack, State)
 run ([], stack, state) = ([], stack, state) 
@@ -57,6 +59,14 @@ run ((Mult):code, stack, state) = run (code, mult stack, state)
 run ((Sub):code, stack, state) = run (code, sub stack, state)
 run ((Tru):code, stack, state) = run (code, true stack, state)
 run ((Fals):code, stack, state) = run (code, false stack, state)
+run ((Equ):code, stack, state) = run (code, equ stack, state)
+run ((Le):code, stack, state) = run (code, le stack, state)
+run ((And):code, stack, state) = run (code, stackAnd stack, state)
+run ((Neg):code, stack, state) = run (code, neg stack, state)
+run ((Fetch var):code, stack, state) = run (code, (fetchElem var stack state), state)
+run ((Store var):code, stack, state) = run (code, tail stack, storeElem var stack state)
+
+
 
 pushElem :: Integer -> Stack -> Stack
 pushElem elem stack = (IntValue elem):stack
@@ -74,14 +84,55 @@ sub ((IntValue elem1):(IntValue elem2):stack) = (IntValue (elem1 - elem2)):stack
 sub _ = error "Run-time error"
 
 true :: Stack -> Stack
-true stack = TT:stack
+true stack = (BoolValue True):stack
 
 false :: Stack -> Stack
-false stack = FF:stack
+false stack = (BoolValue False):stack
+
+equ :: Stack -> Stack
+equ ((IntValue elem1):(IntValue elem2):stack)
+  | elem1 == elem2 = (BoolValue True):stack
+  | otherwise = (BoolValue False):stack
+equ ((BoolValue elem1):(BoolValue elem2):stack)
+  | elem1 == elem2 = (BoolValue True):stack
+  | otherwise = (BoolValue False):stack
+equ _ = error "Run-time error" 
+
+le :: Stack -> Stack
+le ((IntValue elem1):(IntValue elem2):stack)
+  | elem1 <= elem2 = (BoolValue True):stack
+  | otherwise = (BoolValue False):stack
+le _ = error "Run-time error"
+
+stackAnd :: Stack -> Stack
+stackAnd ((BoolValue elem1):(BoolValue elem2):stack)
+  | elem1 && elem2 = (BoolValue True):stack
+  | otherwise = (BoolValue False):stack
+stackAnd _ = error "Run-time error"
+
+neg :: Stack -> Stack
+neg ((BoolValue elem):stack)
+  | elem = (BoolValue False):stack
+  | otherwise = (BoolValue True):stack
+neg _ = error "Run-time error"
 
 
+-- If you test:
+-- testAssembler [Tru,Tru,Store "y", Fetch "x",Tru]
+-- You should get an exception with the string: "Run-time error"
+-- so i assume that fetch and store only work with Integers
+
+fetchElem :: String -> Stack -> State -> Stack
+fetchElem varName stack state = case lookup varName state of
+  Just (IntValue elem) -> (IntValue elem):stack
+  Nothing -> error "Run-time error" -- variable not found
+  _ -> error "Run-time error" -- variable is a BoolValue
 
 
+storeElem :: String -> Stack -> State -> State
+storeElem varName ((IntValue elem):stack) state = (varName, (IntValue elem)) : filter ((/= varName) . fst) state
+storeElem _ [] state = error "Run-time error" -- stack is empty
+storeElem _ _ _ = error "Run-time error" -- stack has a BoolValue at the top
 
 
 -- To help you test your assembler
