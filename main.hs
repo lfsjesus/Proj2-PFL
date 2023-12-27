@@ -12,7 +12,7 @@ data Inst =
 type Code = [Inst]
 
 -- Define the variable types of Stack
-data StackDataType = Value Integer | TT | FF deriving (Show, Eq)
+data StackDataType = IntValue Integer | TT | FF deriving (Show, Eq)
 
 
 -- Define the types Stack and State
@@ -23,7 +23,7 @@ createEmptyStack :: Stack
 createEmptyStack = []
 
 convertFromStackStr :: StackDataType -> String
-convertFromStackStr (Value x) = show x
+convertFromStackStr (IntValue x) = show x
 convertFromStackStr TT = "True"
 convertFromStackStr FF = "False"
 
@@ -46,11 +46,43 @@ state2Str state =
   tail . foldr (\(key, value) acc -> "," ++ key ++ "=" ++ convertFromStackStr value ++ acc) "" $ 
   sortBy compareFst state
 
-test1 = stack2Str [Value 1, Value 2, TT]
-test2 = state2Str [("x", Value 1), ("z", Value 2), ("y", TT)]
+test1 = stack2Str [IntValue 1, IntValue 2, TT]
+test2 = state2Str [("x", IntValue 1), ("z", IntValue 2), ("y", TT)]
 
--- run :: (Code, Stack, State) -> (Code, Stack, State)
-run = undefined -- TODO
+run :: (Code, Stack, State) -> (Code, Stack, State)
+run ([], stack, state) = ([], stack, state) 
+run ((Push elem):code, stack, state) = run (code, pushElem elem stack, state)
+run ((Add):code, stack, state) = run (code, add stack, state)
+run ((Mult):code, stack, state) = run (code, mult stack, state)
+run ((Sub):code, stack, state) = run (code, sub stack, state)
+run ((Tru):code, stack, state) = run (code, true stack, state)
+run ((Fals):code, stack, state) = run (code, false stack, state)
+
+pushElem :: Integer -> Stack -> Stack
+pushElem elem stack = (IntValue elem):stack
+
+add :: Stack -> Stack -- verify if the stack has at least 2 Integers at the top
+add ((IntValue elem1):(IntValue elem2):stack) = (IntValue (elem1 + elem2)):stack
+add _ = error "Run-time error"
+
+mult :: Stack -> Stack -- verify if the stack has at least 2 Integers at the top
+mult ((IntValue elem1):(IntValue elem2):stack) = (IntValue (elem1 * elem2)):stack
+mult _ = error "Run-time error"
+
+sub :: Stack -> Stack -- verify if the stack has at least 2 Integers at the top
+sub ((IntValue elem1):(IntValue elem2):stack) = (IntValue (elem1 - elem2)):stack
+sub _ = error "Run-time error"
+
+true :: Stack -> Stack
+true stack = TT:stack
+
+false :: Stack -> Stack
+false stack = FF:stack
+
+
+
+
+
 
 -- To help you test your assembler
 testAssembler :: Code -> (String, String)
