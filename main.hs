@@ -1,3 +1,4 @@
+import Data.List (sortBy)
 -- PFL 2023/24 - Haskell practical assignment quickstart
 -- Updated on 15/12/2023
 
@@ -10,17 +11,43 @@ data Inst =
   deriving Show
 type Code = [Inst]
 
--- createEmptyStack :: Stack
-createEmptyStack = undefined -- TODO, Uncomment the function signature after defining Stack
+-- Define the variable types of Stack
+data StackDataType = Value Integer | TT | FF deriving (Show, Eq)
 
--- stack2Str :: Stack -> String
-stack2Str = undefined -- TODO, Uncomment all the other function type declarations as you implement them
 
--- createEmptyState :: State
-createEmptyState = undefined -- TODO, Uncomment the function signature after defining State
+-- Define the types Stack and State
+type Stack = [StackDataType]
+type State = [(String, StackDataType)]
 
--- state2Str :: State -> String
-state2Str = undefined -- TODO
+createEmptyStack :: Stack
+createEmptyStack = []
+
+convertFromStackStr :: StackDataType -> String
+convertFromStackStr (Value x) = show x
+convertFromStackStr TT = "True"
+convertFromStackStr FF = "False"
+
+stack2Str :: Stack -> String   --[1,2,3,4] -> "4,3,2,1"
+stack2Str [] = ""
+stack2Str stack = init . foldl (\acc elem ->  convertFromStackStr elem ++ "," ++ acc) "" $ stack
+
+createEmptyState :: State
+createEmptyState = []
+
+
+-- Helper function to compare pairs by their first element (variable name)
+compareFst :: Ord a => (a, b) -> (a, b) -> Ordering
+compareFst (a1, _) (a2, _) = compare a1 a2
+
+-- Function to convert a State to a String using foldr
+state2Str :: State -> String
+state2Str [] = ""  -- Handle the empty case explicitly to avoid tail call on empty string
+state2Str state = 
+  tail . foldr (\(key, value) acc -> "," ++ key ++ "=" ++ convertFromStackStr value ++ acc) "" $ 
+  sortBy compareFst state
+
+test1 = stack2Str [Value 1, Value 2, TT]
+test2 = state2Str [("x", Value 1), ("z", Value 2), ("y", TT)]
 
 -- run :: (Code, Stack, State) -> (Code, Stack, State)
 run = undefined -- TODO
@@ -64,9 +91,9 @@ compile = undefined -- TODO
 parse = undefined -- TODO
 
 -- To help you test your parser
-testParser :: String -> (String, String)
-testParser programCode = (stack2Str stack, store2Str store)
-  where (_,stack,store) = run(compile (parse programCode), createEmptyStack, createEmptyStore)
+--testParser :: String -> (String, String)
+-- testParser programCode = (stack2Str stack, store2Str store)
+  --where (_,stack,store) = run(compile (parse programCode), createEmptyStack, createEmptyStore)
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
