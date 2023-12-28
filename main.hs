@@ -31,7 +31,7 @@ convertFromStackStr (BoolValue x) = case x of
 
 stack2Str :: Stack -> String   --[1,2,3,4] -> "4,3,2,1"
 stack2Str [] = ""
-stack2Str stack = init . foldl (\acc elem ->  convertFromStackStr elem ++ "," ++ acc) "" $ stack
+stack2Str stack = init . foldr (\elem acc ->  convertFromStackStr elem ++ "," ++ acc) "" $ stack
 
 createEmptyState :: State
 createEmptyState = []
@@ -66,7 +66,7 @@ run ((Neg):code, stack, state) = run (code, neg stack, state)
 run ((Fetch var):code, stack, state) = run (code, (fetchElem var stack state), state)
 run ((Store var):code, stack, state) = run (code, tail stack, storeElem var stack state)
 run ((Noop):code, stack, state) = run (code, stack, state) -- Don't need function for this
-run ((Branch code1 code2):code, stack, state) = run (branch code1 code2 stack, stack, state)
+run ((Branch code1 code2):code, stack, state) = run (branch code1 code2 stack, tail stack, state)
 run ((Loop code1 code2):code, stack, state) = run (loop code1 code2 ++ code, stack, state)
 
 pushElem :: Integer -> Stack -> Stack
