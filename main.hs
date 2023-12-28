@@ -65,8 +65,9 @@ run ((And):code, stack, state) = run (code, stackAnd stack, state)
 run ((Neg):code, stack, state) = run (code, neg stack, state)
 run ((Fetch var):code, stack, state) = run (code, (fetchElem var stack state), state)
 run ((Store var):code, stack, state) = run (code, tail stack, storeElem var stack state)
-
-
+run ((Noop):code, stack, state) = run (code, stack, state) -- Don't need function for this
+run ((Branch code1 code2):code, stack, state) = run (branch code1 code2 stack, stack, state)
+run ((Loop code1 code2):code, stack, state) = run (loop code1 code2 ++ code, stack, state)
 
 pushElem :: Integer -> Stack -> Stack
 pushElem elem stack = (IntValue elem):stack
@@ -117,22 +118,35 @@ neg ((BoolValue elem):stack)
 neg _ = error "Run-time error"
 
 
+branch :: Code -> Code -> Stack -> Code
+branch code1 code2 ((BoolValue elem):stack)
+  | elem = code1
+  | otherwise = code2
+branch _ _ _ = error "Run-time error"
+
+loop :: Code -> Code -> Code 
+loop code1 code2 = code1 ++ [Branch (code2 ++ [Loop code1 code2]) [Noop]]
+
+
 -- If you test:
 -- testAssembler [Tru,Tru,Store "y", Fetch "x",Tru]
 -- You should get an exception with the string: "Run-time error"
--- so i assume that fetch and store only work with Integers
+-- 
 
 fetchElem :: String -> Stack -> State -> Stack
 fetchElem varName stack state = case lookup varName state of
-  Just (IntValue elem) -> (IntValue elem):stack
-  Nothing -> error "Run-time error" -- variable not found
-  _ -> error "Run-time error" -- variable is a BoolValue
-
+  Just (IntValue elem) -> pushElem elem stack
+  Just (BoolValue elem) -> case elem of
+    True -> true stack
+    False -> false stack
+  Nothing -> error "Run-time error" -- 
 
 storeElem :: String -> Stack -> State -> State
 storeElem varName ((IntValue elem):stack) state = (varName, (IntValue elem)) : filter ((/= varName) . fst) state
+storeElem varName ((BoolValue elem):stack) state = (varName, (BoolValue elem)) : filter ((/= varName) . fst) state
 storeElem _ [] state = error "Run-time error" -- stack is empty
-storeElem _ _ _ = error "Run-time error" -- stack has a BoolValue at the top
+
+
 
 
 -- To help you test your assembler
