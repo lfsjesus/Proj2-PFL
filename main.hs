@@ -23,8 +23,9 @@ createEmptyStack :: Stack
 createEmptyStack = []
 
 convertFromStackStr :: StackDataType -> String
-convertFromStackStr (IntValue x) = show x
-convertFromStackStr (BoolValue x) = show x
+convertFromStackStr (IntValue elem) = show elem
+convertFromStackStr (BoolValue elem) = show elem
+
 
 stack2Str :: Stack -> String   --[1,2,3,4] -> "4,3,2,1"
 stack2Str [] = ""
