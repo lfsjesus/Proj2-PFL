@@ -161,16 +161,109 @@ compA :: Aexp -> Code
 compA (Num elem) = [Push elem]
 compA (Var varName) = [Fetch varName]
 compA (AddAexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Add]
-compA (SubAexp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Sub]
-compA (MultAexp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Mult]
-
+compA (SubAexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Sub]
+compA (MultAexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Mult]
 
 -- compB
+compB :: Bexp -> Code
+compB (BoolBexp elem)
+  | elem = [Tru]
+  | otherwise = [Fals]
+compB (NegBexp elem) = compB elem ++ [Neg]
+compB (EquNumBexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Equ]
+compB (EquBoolBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [Equ]
+compB (LeNumBexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Le]
+compB (AndBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [And]
+
+-- compile
+compile :: [Stm] -> Code
+compile [] = []
+compile ((AssignStm varName elem):rest) = compA elem ++ [Store varName] ++ compile rest
+compile ((IfStm bool stm1 stm2):rest) = compB bool ++ [Branch (compile stm1) (compile stm2)] ++ compile rest
+compile ((WhileStm bool stm):rest) = [Loop (compB bool) (compile stm)] ++ compile rest
+compile ((NoopStm):rest) = [Noop] ++ compile rest
+compile ((Aexp elem):rest) = compA elem ++ compile rest
+compile ((Bexp elem):rest) = compB elem ++ compile rest
+
+-- parse
+parse :: String -> [Stm]
+parse [] = []
+parse str = parseStm (words str)
+
+parseStm :: [String] -> [Stm]
+parseStm [] = []
+parseStm ("if":rest) = parseIfStm rest
+parseStm ("while":rest) = parseWhileStm rest
+parseStm ("noop":rest) = NoopStm : parseStm rest
+parseStm (varName:"=":rest) = AssignStm varName (parseAexp rest) : parseStm rest
+parseStm (varName:rest) = AssignStm varName (parseAexp rest) : parseStm rest
+
+parseIfStm :: [String] -> [Stm]
+parseIfStm [] = []
+parseIfStm ("(":rest) = parseIfStm rest
+parseIfStm (")":rest) = parseIfStm rest
+parseIfStm ("then":rest) = parseIfStm rest
+parseIfStm ("else":rest) = parseIfStm rest
+parseIfStm ("endif":rest) = parseStm rest
+parseIfStm ("(":rest) = parseIfStm rest
+parseIfStm (")":rest) = parseIfStm rest
+parseIfStm ("then":rest) = parseIfStm rest
+parseIfStm ("else":rest) = parseIfStm rest
+parseIfStm ("endif":rest) = parseStm rest
+parseIfStm ("(":rest) = parseIfStm rest
+parseIfStm (")":rest) = parseIfStm rest
+parseIfStm ("then":rest) = parseIfStm rest
+parseIfStm ("else":rest) = parseIfStm rest
+parseIfStm ("endif":rest) = parseStm rest
+parseIfStm ("(":rest) = parseIfStm rest
+parseIfStm (")":rest) = parseIfStm rest
+parseIfStm ("then":rest) = parseIfStm rest
+parseIfStm ("else":rest) = parseIfStm rest
+parseIfStm ("endif":rest) = parseStm rest
+parseIfStm ("(":rest) = parseIfStm rest
+
+parseWhileStm :: [String] -> [Stm]
+parseWhileStm [] = []
+parseWhileStm ("(":rest) = parseWhileStm rest
+parseWhileStm (")":rest) = parseWhileStm rest
+parseWhileStm ("do":rest) = parseWhileStm rest
+parseWhileStm ("endwhile":rest) = parseStm rest
+parseWhileStm ("(":rest) = parseWhileStm rest
+parseWhileStm (")":rest) = parseWhileStm rest
+parseWhileStm ("do":rest) = parseWhileStm rest
+parseWhileStm ("endwhile":rest) = parseStm rest
+parseWhileStm ("(":rest) = parseWhileStm rest
+parseWhileStm (")":rest) = parseWhileStm rest
+parseWhileStm ("do":rest) = parseWhileStm rest
+parseWhileStm ("endwhile":rest) = parseStm rest
+parseWhileStm ("(":rest) = parseWhileStm rest
+parseWhileStm (")":rest) = parseWhileStm rest
+parseWhileStm ("do":rest) = parseWhileStm rest
+parseWhileStm ("endwhile":rest) = parseStm rest
+parseWhileStm ("(":rest) = parseWhileStm rest
+
+parseAexp :: [String] -> Aexp
+parseAexp [] = error "Run-time error"
+parseAexp (elem:rest)
+  | elem == "+" = AddAexp (parseAexp rest) (parseAexp (tail rest))
+  | elem == "-" = SubAexp (parseAexp rest) (parseAexp (tail rest))
+  | elem == "*" = MultAexp (parseAexp rest) (parseAexp (tail rest))
+  | otherwise = Num (read elem :: Integer)
+
+parseBexp :: [String] -> Bexp
+parseBexp [] = error "Run-time error"
+
+
+
+
+
+
 
 -- To help you test your assembler
 testAssembler :: Code -> (String, String)
 testAssembler code = (stack2Str stack, state2Str state)
   where (_,stack,state) = run(code, createEmptyStack, createEmptyState)
+
 
 -- Examples:
 -- testAssembler [Push 10,Push 4,Push 3,Sub,Mult] == ("-10","")
@@ -180,6 +273,8 @@ testAssembler code = (stack2Str stack, state2Str state)
 -- testAssembler [Push (-20),Tru,Tru,Neg] == ("False,True,-20","")
 -- testAssembler [Push (-20),Tru,Tru,Neg,Equ] == ("False,-20","")
 -- testAssembler [Push (-20),Push (-21), Le] == ("True","")
+-- test a branch
+-- testAssembler [Fals,Branch [Push 1] [Push 2]] == ("1","")
 -- testAssembler [Push 5,Store "x",Push 1,Fetch "x",Sub,Store "x"] == ("","x=4")
 -- testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]] == ("","fact=3628800,i=1")
 -- If you test:
@@ -194,16 +289,7 @@ testAssembler code = (stack2Str stack, state2Str state)
 -- TODO: Define the types Aexp, Bexp, Stm and Program
 
 -- compA :: Aexp -> Code
-compA = undefined -- TODO
-
--- compB :: Bexp -> Code
-compB = undefined -- TODO
-
--- compile :: Program -> Code
-compile = undefined -- TODO
-
 -- parse :: String -> Program
-parse = undefined -- TODO
 
 -- To help you test your parser
 --testParser :: String -> (String, String)
