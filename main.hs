@@ -24,10 +24,7 @@ createEmptyStack = []
 
 convertFromStackStr :: StackDataType -> String
 convertFromStackStr (IntValue x) = show x
-convertFromStackStr (BoolValue x) = case x of
-  True -> "tt"
-  False -> "ff"
-
+convertFromStackStr (BoolValue x) = show x
 
 stack2Str :: Stack -> String   --[1,2,3,4] -> "4,3,2,1"
 stack2Str [] = ""
