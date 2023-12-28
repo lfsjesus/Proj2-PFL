@@ -145,7 +145,27 @@ storeElem varName ((BoolValue elem):stack) state = (varName, (BoolValue elem)) :
 storeElem _ [] state = error "Run-time error" -- stack is empty
 
 
+-- Part 2 -----------------------------------------------------------------------------------------------------------
 
+
+data Aexp = Num Integer | Var String| AddAexp Aexp Aexp | SubAexp Aexp Aexp | MultAexp Aexp Aexp deriving Show
+
+data Bexp = BoolBexp Bool | NegBexp Bexp | EquNumBexp Aexp Aexp | EquBoolBexp Bexp Bexp | LeNumBexp Aexp Aexp | AndBexp Bexp Bexp deriving Show
+
+data Stm = AssignStm String Aexp | IfStm Bexp [Stm] [Stm] | WhileStm Bexp [Stm] | NoopStm | Aexp Aexp | Bexp Bexp deriving Show 
+
+
+
+-- compA 
+compA :: Aexp -> Code
+compA (Num elem) = [Push elem]
+compA (Var varName) = [Fetch varName]
+compA (AddAexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Add]
+compA (SubAexp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Sub]
+compA (MultAexp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Mult]
+
+
+-- compB
 
 -- To help you test your assembler
 testAssembler :: Code -> (String, String)
