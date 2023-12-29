@@ -155,6 +155,8 @@ data Bexp = BoolBexp Bool | NegBexp Bexp | EquNumBexp Aexp Aexp | EquBoolBexp Be
 
 data Stm = AssignStm String Aexp | IfStm Bexp [Stm] [Stm] | WhileStm Bexp [Stm] | NoopStm | Aexp Aexp | Bexp Bexp deriving Show 
 
+type Program = [Stm]
+
 data Token
   = NumToken Integer
   | VarToken String
@@ -201,7 +203,7 @@ compB (LeNumBexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Le]
 compB (AndBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [And]
 
 -- compile
-compile :: [Stm] -> Code
+compile :: Program -> Code
 compile [] = []
 compile ((AssignStm varName elem):rest) = compA elem ++ [Store varName] ++ compile rest
 compile ((IfStm bool stm1 stm2):rest) = compB bool ++ [Branch (compile stm1) (compile stm2)] ++ compile rest
@@ -215,7 +217,7 @@ compile ((Bexp elem):rest) = compB elem ++ compile rest
 
 myLexer :: String -> [Token]
 myLexer [] = []
-myLexer char:rest
+myLexer (char:rest)
   | isDigit char = numLexer (char:rest)
   | isAlpha char = stringLexer (char:rest)
   | isSpace char = myLexer rest
@@ -254,10 +256,68 @@ symbolLexer (')':rest) = RightParToken : myLexer rest
 symbolLexer (';':rest) = SemicolonToken : myLexer rest
 symbolLexer _ = error "Lexical error"
 
+{-
+buildData :: [Token] -> Program
+buildData [] = []
+buildData tokens = 
+  let (stm, restTokens) = parseStm tokens
+  in stm : buildData restTokens
+-}
+
+parseInt :: [Token] -> Maybe (Aexp, [Token])
+parseInt (NumToken num : rest)
+  = Just (Num num, rest)
+parseInt tokens
+  = Nothing
+
+parseIntOrVar :: [Token] -> Maybe (Aexp, [Token])
+parseIntOrVar (NumToken num : rest)
+  = Just (Num num, rest)
+parseIntOrVar (VarToken varName : rest)
+  = Just (Var varName, rest)
+parseIntOrVar tokens
+  = Nothing
+
+parseProdOrInt :: [Token] -> Maybe (Aexp, [Token])
+parseProdOrInt tokens 
+  = case parseIntOrVar tokens of
+      Just (expr1, (MultToken : rest)) -> 
+        case parseProdOrInt rest of
+        Just (expr2, rest2) -> 
+            Just (MultAexp expr1 expr2, rest2)
+        Nothing -> Nothing
+      result -> result
 
 
+parseSumOrSubOrProdOrInt :: [Token] -> Maybe (Aexp, [Token])
+parseSumOrSubOrProdOrInt tokens 
+  = case parseProdOrInt tokens of
+      Just (expr1, (AddToken : rest)) -> 
+        case parseSumOrSubOrProdOrInt rest of
+        Just (expr2, rest2) -> 
+            Just (AddAexp expr1 expr2, rest2)
+        Nothing -> Nothing
+      Just (expr1, (SubToken : rest)) -> 
+        case parseSumOrSubOrProdOrInt rest of
+        Just (expr2, rest2) -> 
+            Just (SubAexp expr1 expr2, rest2)
+        Nothing -> Nothing
+      result -> result
 
+parseIntOrVarOrPar :: [Token] -> Maybe (Aexp, [Token])
+parseIntOrVarOrPar (NumToken num : rest)
+  = Just (Num num, rest)
+parseIntOrVarOrPar (VarToken varName : rest)
+  = Just (Var varName, rest)
+parseIntOrVarOrPar (LeftParToken : rest)
+  = case parseSumOrSubOrProdOrInt rest of
+      Just (expr, (RightParToken : rest2)) -> Just (expr, rest2)
+      _ -> Nothing
+parseIntOrVarOrPar tokens
+  = Nothing
 
+-- parse :: String -> Program
+-- parse = buildData . myLexer
 
 
 
