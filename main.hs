@@ -1,4 +1,5 @@
 import Data.List (sortBy)
+import Data.Char 
 -- PFL 2023/24 - Haskell practical assignment quickstart
 -- Updated on 15/12/2023
 
@@ -154,6 +155,30 @@ data Bexp = BoolBexp Bool | NegBexp Bexp | EquNumBexp Aexp Aexp | EquBoolBexp Be
 
 data Stm = AssignStm String Aexp | IfStm Bexp [Stm] [Stm] | WhileStm Bexp [Stm] | NoopStm | Aexp Aexp | Bexp Bexp deriving Show 
 
+data Token
+  = NumToken Integer
+  | VarToken String
+  | AddToken
+  | SubToken
+  | MultToken
+  | TrueToken
+  | FalseToken
+  | AndToken
+  | NegToken
+  | WhileToken
+  | DoToken
+  | IfToken
+  | ThenToken
+  | ElseToken
+  | AssignToken
+  | EquNumToken
+  | EquBoolToken
+  | LeToken
+  | LeEquToken
+  | SemicolonToken
+  | LeftParToken
+  | RightParToken
+  deriving (Show)
 
 
 -- compA 
@@ -185,73 +210,53 @@ compile ((NoopStm):rest) = [Noop] ++ compile rest
 compile ((Aexp elem):rest) = compA elem ++ compile rest
 compile ((Bexp elem):rest) = compB elem ++ compile rest
 
--- parse
-parse :: String -> [Stm]
-parse [] = []
-parse str = parseStm (words str)
+-- lexer
 
-parseStm :: [String] -> [Stm]
-parseStm [] = []
-parseStm ("if":rest) = parseIfStm rest
-parseStm ("while":rest) = parseWhileStm rest
-parseStm ("noop":rest) = NoopStm : parseStm rest
-parseStm (varName:"=":rest) = AssignStm varName (parseAexp rest) : parseStm rest
-parseStm (varName:rest) = AssignStm varName (parseAexp rest) : parseStm rest
 
-parseIfStm :: [String] -> [Stm]
-parseIfStm [] = []
-parseIfStm ("(":rest) = parseIfStm rest
-parseIfStm (")":rest) = parseIfStm rest
-parseIfStm ("then":rest) = parseIfStm rest
-parseIfStm ("else":rest) = parseIfStm rest
-parseIfStm ("endif":rest) = parseStm rest
-parseIfStm ("(":rest) = parseIfStm rest
-parseIfStm (")":rest) = parseIfStm rest
-parseIfStm ("then":rest) = parseIfStm rest
-parseIfStm ("else":rest) = parseIfStm rest
-parseIfStm ("endif":rest) = parseStm rest
-parseIfStm ("(":rest) = parseIfStm rest
-parseIfStm (")":rest) = parseIfStm rest
-parseIfStm ("then":rest) = parseIfStm rest
-parseIfStm ("else":rest) = parseIfStm rest
-parseIfStm ("endif":rest) = parseStm rest
-parseIfStm ("(":rest) = parseIfStm rest
-parseIfStm (")":rest) = parseIfStm rest
-parseIfStm ("then":rest) = parseIfStm rest
-parseIfStm ("else":rest) = parseIfStm rest
-parseIfStm ("endif":rest) = parseStm rest
-parseIfStm ("(":rest) = parseIfStm rest
+myLexer :: String -> [Token]
+myLexer [] = []
+myLexer char:rest
+  | isDigit char = numLexer (char:rest)
+  | isAlpha char = stringLexer (char:rest)
+  | isSpace char = myLexer rest
+  | otherwise = symbolLexer (char:rest)
 
-parseWhileStm :: [String] -> [Stm]
-parseWhileStm [] = []
-parseWhileStm ("(":rest) = parseWhileStm rest
-parseWhileStm (")":rest) = parseWhileStm rest
-parseWhileStm ("do":rest) = parseWhileStm rest
-parseWhileStm ("endwhile":rest) = parseStm rest
-parseWhileStm ("(":rest) = parseWhileStm rest
-parseWhileStm (")":rest) = parseWhileStm rest
-parseWhileStm ("do":rest) = parseWhileStm rest
-parseWhileStm ("endwhile":rest) = parseStm rest
-parseWhileStm ("(":rest) = parseWhileStm rest
-parseWhileStm (")":rest) = parseWhileStm rest
-parseWhileStm ("do":rest) = parseWhileStm rest
-parseWhileStm ("endwhile":rest) = parseStm rest
-parseWhileStm ("(":rest) = parseWhileStm rest
-parseWhileStm (")":rest) = parseWhileStm rest
-parseWhileStm ("do":rest) = parseWhileStm rest
-parseWhileStm ("endwhile":rest) = parseStm rest
-parseWhileStm ("(":rest) = parseWhileStm rest
+numLexer :: String -> [Token]
+numLexer chars = NumToken (read num) : myLexer rest
+  where (num, rest) = span isDigit chars
 
-parseAexp :: [String] -> Aexp
-parseAexp [] = error "Run-time error"
-parseAexp (elem:rest)
-  | elem == "+" = AddAexp (parseAexp rest) (parseAexp (tail rest))
-  | elem == "-" = SubAexp (parseAexp rest) (parseAexp (tail rest))
-  | elem == "*" = MultAexp (parseAexp rest) (parseAexp (tail rest))
-  | otherwise = Num (read elem :: Integer)
+stringLexer :: String -> [Token]
+stringLexer chars = 
+  let (word, rest) = span isAlpha chars
+  in case word of 
+    "True" -> TrueToken : myLexer rest
+    "False" -> FalseToken : myLexer rest
+    "and" -> AndToken : myLexer rest
+    "not" -> NegToken : myLexer rest
+    "while" -> WhileToken : myLexer rest
+    "do" -> DoToken : myLexer rest
+    "if" -> IfToken : myLexer rest
+    "then" -> ThenToken : myLexer rest
+    "else" -> ElseToken : myLexer rest
+    _ -> VarToken word : myLexer rest
 
-parseBexp :: [String] -> Bexp
-parseBexp [] = error "Run-time error"
+symbolLexer :: String -> [Token]
+symbolLexer(':':'=':rest) = AssignToken : myLexer rest
+symbolLexer ('=':'=':rest) = EquNumToken : myLexer rest
+symbolLexer ('<':'=':rest) = LeEquToken : myLexer rest
+symbolLexer ('=':rest) = EquBoolToken : myLexer rest
+symbolLexer ('<':rest) = LeToken : myLexer rest
+symbolLexer ('+':rest) = AddToken : myLexer rest
+symbolLexer ('-':rest) = SubToken : myLexer rest
+symbolLexer ('*':rest) = MultToken : myLexer rest
+symbolLexer ('(':rest) = LeftParToken : myLexer rest
+symbolLexer (')':rest) = RightParToken : myLexer rest
+symbolLexer (';':rest) = SemicolonToken : myLexer rest
+symbolLexer _ = error "Lexical error"
+
+
+
+
 
 
 
