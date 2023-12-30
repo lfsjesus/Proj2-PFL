@@ -373,23 +373,31 @@ parseBoolOperations tokens
       result -> result
 
 parseSequence :: [Token] -> Maybe ([Stm], [Token])
+parseSequence tokens = loop tokens []
+  where 
+    loop [] acc = Just (reverse acc, [])
+    loop (ElseToken : rest) acc = Just (reverse acc, ElseToken : rest)
+    loop tokens acc = case parseStm tokens of
+      Just (stm, rest) -> case rest of
+        (SemicolonToken : rest2) -> loop rest2 (stm : acc)
+        _ -> Just (reverse (stm : acc), rest)
+      Nothing -> Nothing
 
+parseElse :: [Token] -> Maybe ([Stm], [Token])
+parseElse tokens = loop tokens []
+  where 
+    loop [] acc = Nothing
+    loop (RightParToken : SemicolonToken : rest) acc = Just (reverse acc, rest)
+    loop tokens acc = case parseStm tokens of
+      Just (stm, rest) -> case rest of
+        (SemicolonToken : rest2) -> loop rest2 (stm : acc)
+        _ -> Nothing
+      Nothing -> Nothing
 
-parseStmSeq :: [Token] -> Maybe ([Stm], [Token])
-parseStmSeq tokens = loopAux tokens []
-
--- Auxiliary loop function defined outside parseStmSeq
-loopAux :: [Token] -> [Stm] -> Maybe ([Stm], [Token])
-loopAux [] acc = Just (reverse acc, [])
-loopAux (ElseTok : rest) acc = Just (reverse acc, ElseTok : rest)
-loopAux tokens acc =
-  case parseStm tokens of
-    Just (stm, restTokens) ->
-      case restTokens of
-        (SemicolonTok : restTokens') -> loopAux restTokens' (stm : acc)
-        _ -> Just (reverse (stm : acc), restTokens)
-    Nothing -> Nothing
-
+parseStatement :: [Token] -> Maybe (Stm, [Token])
+parseStatement tokens =
+  case tokens of 
+    
 
 
 -- parse :: String -> Program
