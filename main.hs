@@ -151,9 +151,9 @@ storeElem _ [] state = error "Run-time error" -- stack is empty
 
 data Aexp = Num Integer | Var String| AddAexp Aexp Aexp | SubAexp Aexp Aexp | MultAexp Aexp Aexp deriving Show
 
-data Bexp = BoolBexp Bool | NegBexp Bexp | EquNumBexp Aexp Aexp | EquBoolBexp Bexp Bexp | LeNumBexp Aexp Aexp | AndBexp Bexp Bexp deriving Show
+data Bexp = BoolBexp Bool | NegBexp Bexp | EquNumBexp Aexp Aexp | EquBoolBexp Bexp Bexp | LeNumBexp Aexp Aexp | AndBexp Bexp Bexp | NumBexp Integer | VarBexp String deriving Show 
 
-data Stm = AssignStm String Aexp | IfStm Bexp [Stm] [Stm] | WhileStm Bexp [Stm] | NoopStm | Aexp Aexp | Bexp Bexp deriving Show 
+data Stm = AssignStm String Aexp | IfStm Bexp [Stm] [Stm] | WhileStm Bexp [Stm] | NoopStm | Seq [Stm] deriving Show 
 
 type Program = [Stm]
 
@@ -175,7 +175,6 @@ data Token
   | AssignToken
   | EquNumToken
   | EquBoolToken
-  | LeToken
   | LeEquToken
   | SemicolonToken
   | LeftParToken
@@ -196,6 +195,8 @@ compB :: Bexp -> Code
 compB (BoolBexp elem)
   | elem = [Tru]
   | otherwise = [Fals]
+compB (NumBexp elem) = [Push elem]
+compB (VarBexp varName) = [Fetch varName]
 compB (NegBexp elem) = compB elem ++ [Neg]
 compB (EquNumBexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Equ]
 compB (EquBoolBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [Equ]
@@ -209,9 +210,7 @@ compile ((AssignStm varName elem):rest) = compA elem ++ [Store varName] ++ compi
 compile ((IfStm bool stm1 stm2):rest) = compB bool ++ [Branch (compile stm1) (compile stm2)] ++ compile rest
 compile ((WhileStm bool stm):rest) = [Loop (compB bool) (compile stm)] ++ compile rest
 compile ((NoopStm):rest) = [Noop] ++ compile rest
-compile ((Aexp elem):rest) = compA elem ++ compile rest
-compile ((Bexp elem):rest) = compB elem ++ compile rest
-
+compile ((Seq stm):rest) = compile stm ++ compile rest
 -- lexer
 
 
@@ -247,7 +246,6 @@ symbolLexer(':':'=':rest) = AssignToken : myLexer rest
 symbolLexer ('=':'=':rest) = EquNumToken : myLexer rest
 symbolLexer ('<':'=':rest) = LeEquToken : myLexer rest
 symbolLexer ('=':rest) = EquBoolToken : myLexer rest
-symbolLexer ('<':rest) = LeToken : myLexer rest
 symbolLexer ('+':rest) = AddToken : myLexer rest
 symbolLexer ('-':rest) = SubToken : myLexer rest
 symbolLexer ('*':rest) = MultToken : myLexer rest
@@ -264,64 +262,138 @@ buildData tokens =
   in stm : buildData restTokens
 -}
 
-parseInt :: [Token] -> Maybe (Aexp, [Token])
-parseInt (NumToken num : rest)
+parseAexp :: [Token] -> Maybe (Aexp, [Token])
+parseAexp (NumToken num : rest)
   = Just (Num num, rest)
-parseInt tokens
-  = Nothing
-
-parseIntOrVar :: [Token] -> Maybe (Aexp, [Token])
-parseIntOrVar (NumToken num : rest)
-  = Just (Num num, rest)
-parseIntOrVar (VarToken varName : rest)
+parseAexp (VarToken varName : rest)
   = Just (Var varName, rest)
-parseIntOrVar tokens
+parseAexp tokens
   = Nothing
 
-parseProdOrInt :: [Token] -> Maybe (Aexp, [Token])
-parseProdOrInt tokens 
-  = case parseIntOrVar tokens of
+-- parentesis
+parseAexpOrParen :: [Token] -> Maybe (Aexp, [Token])
+parseAexpOrParen (LeftParToken : rest)
+  = case parseAexpOrParen rest of
+      Just (expr, (RightParToken : rest2)) -> Just (expr, rest2)
+      _ -> Nothing
+parseAexpOrParen tokens
+  = parseAexp tokens
+
+parseMultOrAexpOrParen :: [Token] -> Maybe (Aexp, [Token])
+parseMultOrAexpOrParen tokens 
+  = case parseAexpOrParen tokens of
       Just (expr1, (MultToken : rest)) -> 
-        case parseProdOrInt rest of
+        case parseMultOrAexpOrParen rest of
         Just (expr2, rest2) -> 
             Just (MultAexp expr1 expr2, rest2)
         Nothing -> Nothing
       result -> result
 
-
-parseSumOrSubOrProdOrInt :: [Token] -> Maybe (Aexp, [Token])
-parseSumOrSubOrProdOrInt tokens 
-  = case parseProdOrInt tokens of
+parseOperationsOrParen :: [Token] -> Maybe (Aexp, [Token])
+parseOperationsOrParen tokens 
+  = case parseMultOrAexpOrParen tokens of
       Just (expr1, (AddToken : rest)) -> 
-        case parseSumOrSubOrProdOrInt rest of
+        case parseOperationsOrParen rest of
         Just (expr2, rest2) -> 
             Just (AddAexp expr1 expr2, rest2)
         Nothing -> Nothing
       Just (expr1, (SubToken : rest)) -> 
-        case parseSumOrSubOrProdOrInt rest of
+        case parseOperationsOrParen rest of
         Just (expr2, rest2) -> 
             Just (SubAexp expr1 expr2, rest2)
         Nothing -> Nothing
       result -> result
 
-parseIntOrVarOrPar :: [Token] -> Maybe (Aexp, [Token])
-parseIntOrVarOrPar (NumToken num : rest)
-  = Just (Num num, rest)
-parseIntOrVarOrPar (VarToken varName : rest)
-  = Just (Var varName, rest)
-parseIntOrVarOrPar (LeftParToken : rest)
-  = case parseSumOrSubOrProdOrInt rest of
-      Just (expr, (RightParToken : rest2)) -> Just (expr, rest2)
+
+parseBexp :: [Token] -> Maybe (Bexp, [Token])
+parseBexp (LeftParToken : rest)
+  = case parseBoolOperations rest of
+      Just (expr, (RightParToken : rest2)) -> 
+        Just (expr, rest2)
       _ -> Nothing
-parseIntOrVarOrPar tokens
-  = Nothing
+      Nothing -> Nothing
+parseBexp (TrueToken : rest)
+  = Just (BoolBexp True, rest)
+parseBexp (FalseToken : rest)
+  = Just (BoolBexp False, rest)
+parseBexp (NumToken num : rest)
+  = Just (NumBexp num, rest)
+parseBexp (VarToken varName : rest)
+  = Just (VarBexp varName, rest)
+parseBexp _ = Nothing
+
+parseLeOrBexp :: [Token] -> Maybe (Bexp, [Token])
+parseLeOrBexp tokens 
+  = case parseBexp tokens of
+      Just (expr1, (LeEquToken : rest)) -> 
+        case parseBexp rest of
+        Just (expr2, rest2) -> 
+            Just (LeNumBexp expr1 expr2, rest2)
+        Nothing -> Nothing
+      result -> result
+
+parseLeOrEquOrBexp :: [Token] -> Maybe (Bexp, [Token])
+parseLeOrEquOrBexp tokens 
+  = case parseLeOrBexp tokens of
+      Just (expr1, (EquNumToken : rest)) -> 
+        case parseLeOrEquOrBexp rest of
+        Just (expr2, rest2) -> 
+            Just (EquNumBexp expr1 expr2, rest2)
+        Nothing -> Nothing
+      result -> result
+
+parseLeOrEquOrNegOrBexp :: [Token] -> Maybe (Bexp, [Token])
+parseLeOrEquOrNegOrBexp tokens 
+  = case tokens of
+      (NegToken : rest) -> 
+        case parseLeOrEquOrNegOrBexp rest of
+        Just (expr, rest2) -> 
+            Just (NegBexp expr, rest2)
+        Nothing -> Nothing
+      _ -> parseLeOrEquOrBexp tokens
+
+parseLeOrEquOrNegOrBoolEquOrBexp :: [Token] -> Maybe (Bexp, [Token])
+parseLeOrEquOrNegOrBoolEquOrBexp tokens 
+  = case parseLeOrEquOrNegOrBexp tokens of
+      Just (expr1, (EquBoolToken : rest)) -> 
+        case parseLeOrEquOrNegOrBoolEquOrBexp rest of
+        Just (expr2, rest2) -> 
+            Just (EquBoolBexp expr1 expr2, rest2)
+        Nothing -> Nothing
+      result -> result
+
+parseBoolOperations :: [Token] -> Maybe (Bexp, [Token])
+parseBoolOperations tokens 
+  = case parseLeOrEquOrNegOrBoolEquOrBexp tokens of
+      Just (expr1, (AndToken : rest)) -> 
+        case parseBoolOperations rest of
+        Just (expr2, rest2) -> 
+            Just (AndBexp expr1 expr2, rest2)
+        Nothing -> Nothing
+      result -> result
+
+parseSequence :: [Token] -> Maybe ([Stm], [Token])
+
+
+parseStmSeq :: [Token] -> Maybe ([Stm], [Token])
+parseStmSeq tokens = loopAux tokens []
+
+-- Auxiliary loop function defined outside parseStmSeq
+loopAux :: [Token] -> [Stm] -> Maybe ([Stm], [Token])
+loopAux [] acc = Just (reverse acc, [])
+loopAux (ElseTok : rest) acc = Just (reverse acc, ElseTok : rest)
+loopAux tokens acc =
+  case parseStm tokens of
+    Just (stm, restTokens) ->
+      case restTokens of
+        (SemicolonTok : restTokens') -> loopAux restTokens' (stm : acc)
+        _ -> Just (reverse (stm : acc), restTokens)
+    Nothing -> Nothing
+
+
 
 -- parse :: String -> Program
 -- parse = buildData . myLexer
-
-
-
-
 
 
 -- To help you test your assembler
@@ -358,14 +430,19 @@ testAssembler code = (stack2Str stack, state2Str state)
 
 -- To help you test your parser
 --testParser :: String -> (String, String)
--- testParser programCode = (stack2Str stack, store2Str store)
-  --where (_,stack,store) = run(compile (parse programCode), createEmptyStack, createEmptyStore)
+--testParser programCode = (stack2Str stack, state2Str state)
+--  where (_,stack,state) = run(compile (parse programCode), createEmptyStack, createEmptyState)
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
+-- testParser "x := 0 - 2;" == ("","x=-2")
 -- testParser "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;" == ("","y=2")
--- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;)" == ("","x=1")
+-- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);" == ("","x=1")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
+-- testParser "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;" == ("","x=34,y=68")
+-- testParser "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;" == ("","x=34")
+-- testParser "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;" == ("","x=1")
+-- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
 -- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
