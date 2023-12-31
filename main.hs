@@ -197,10 +197,10 @@ compB (BoolBexp elem)
   | otherwise = [Fals]
 compB (AexpBexp elem) = compA elem
 compB (NegBexp elem) = compB elem ++ [Neg]
-compB (EquNumBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [Equ]
-compB (EquBoolBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [Equ]
-compB (LeNumBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [Le]
-compB (AndBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [And]
+compB (EquNumBexp elem1 elem2) = compB elem2 ++ compB elem1 ++ [Equ]
+compB (EquBoolBexp elem1 elem2) = compB elem2 ++ compB elem1 ++ [Equ]
+compB (LeNumBexp elem1 elem2) = compB elem2 ++ compB elem1 ++ [Le]
+compB (AndBexp elem1 elem2) = compB elem2 ++ compB elem1 ++ [And]
 
 -- compile
 compile :: Program -> Code
