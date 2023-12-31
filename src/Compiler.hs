@@ -28,4 +28,3 @@ compile [] = []
 compile ((AssignStm varName elem):rest) = compA elem ++ [Store varName] ++ compile rest
 compile ((IfStm bool stm1 stm2):rest) = compB bool ++ [Branch (compile stm1) (compile stm2)] ++ compile rest
 compile ((WhileStm bool stm):rest) = [Loop (compB bool) (compile stm)] ++ compile rest
-compile ((NoopStm):rest) = [Noop] ++ compile rest
