@@ -480,7 +480,7 @@ parseStatement (WhileToken : restTokens1) =
     Just (expr, DoToken : LeftParToken : restTokens2) ->
       case parseStatement restTokens2 of
         -- Case when 'do' block is explicitly enclosed in parentheses.
-        Just (stmts, RightParToken : restTokens3) ->
+        Just (stmts, RightParToken : SemicolonToken : restTokens3) ->
           -- Parse additional statements following the 'while-do'.
           case parseStatement restTokens3 of
             Just (additionalStmts, finalRestTokens) ->
@@ -567,4 +567,4 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- testParser "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;" == ("","x=1")
 -- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
--- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1") ----not passing
+-- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
