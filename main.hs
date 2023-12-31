@@ -1,6 +1,5 @@
 import Data.List (sortBy)
 import Data.Char 
-import Debug.Trace
 -- PFL 2023/24 - Haskell practical assignment quickstart
 -- Updated on 15/12/2023
 
@@ -47,9 +46,6 @@ state2Str [] = ""  -- Handle the empty case explicitly to avoid tail call on emp
 state2Str state = 
   tail . foldr (\(key, value) acc -> "," ++ key ++ "=" ++ convertFromStackStr value ++ acc) "" $ 
   sortBy compareFst state
-
-test1 = stack2Str [IntValue 1, IntValue 2, BoolValue True]
-test2 = state2Str [("x", IntValue 1), ("z", IntValue 2), ("y", BoolValue True)]
 
 run :: (Code, Stack, State) -> (Code, Stack, State)
 run ([], stack, state) = ([], stack, state) 
@@ -411,7 +407,8 @@ parseStatement (VarToken varName : AssignToken : rest)
             Just (AssignStm varName expr : stms, rest3)
           Nothing ->
             Just ([AssignStm varName expr], rest2)
-      _ -> Nothing  
+      _ -> Nothing 
+
       
 ---------------------------- IF Stm ----------------------------------
 
@@ -449,7 +446,7 @@ parseStatement (IfToken : restTokens1) =
           -- Parse the 'else' block.
           case parseStatement restTokens3 of
             -- Successfully parsed 'else' block, expecting closing parenthesis.
-            Just (stmts2, RightParToken:restTokens4) ->
+            Just (stmts2, RightParToken: SemicolonToken : restTokens4) -> 
               -- Parse additional statements following the 'if-then-else'.
               case parseStatement restTokens4 of
                 -- Successfully parsed additional statements.
@@ -513,7 +510,7 @@ parseStatement (WhileToken : restTokens1) =
     -- Failed to parse the condition or didn't find the expected 'DoTok'.
     _ -> Nothing
 
-parseStatement tokens = Nothing
+parseStatement tokens = Just ([], tokens) 
 
 buildData :: [Token] -> Program
 buildData tokens = 
@@ -575,3 +572,4 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
 -- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
+
