@@ -25,7 +25,7 @@ data Aexp = Num Integer | Var String| AddAexp Aexp Aexp | SubAexp Aexp Aexp | Mu
 
 data Bexp = BoolBexp Bool | NegBexp Bexp | EquNumBexp Bexp Bexp | EquBoolBexp Bexp Bexp | LeNumBexp Bexp Bexp | AndBexp Bexp Bexp | AexpBexp Aexp deriving (Show,Eq) 
 
-data Stm = AssignStm String Aexp | IfStm Bexp [Stm] [Stm] | WhileStm Bexp [Stm] | NoopStm deriving Show 
+data Stm = AssignStm String Aexp | IfStm Bexp [Stm] [Stm] | WhileStm Bexp [Stm] deriving Show 
 
 type Program = [Stm]
 
