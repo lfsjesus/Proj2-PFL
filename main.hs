@@ -436,7 +436,7 @@ parseStatement (IfToken : restTokens1) =
     -- Case when 'then' block is not explicitly started with an open parenthesis.
     Just (expr, ThenToken : restTokens2) ->
       -- Parse the 'then' block as a single statement.
-      case parseSingleStatement restTokens2 of
+      case parseSingleStm restTokens2 of
         -- Case when 'else' block starts with an open parenthesis after a single 'then' statement.
         Just (stmts1, ElseToken : LeftParToken : restTokens3) ->
           -- Parse the 'else' block.
@@ -453,16 +453,16 @@ parseStatement (IfToken : restTokens1) =
             -- Failed to parse 'else' block.
             Nothing -> Nothing
         -- Case when 'else' follows directly after a single 'then' statement.
-        Just (stmts1, ElseTok : restTokens3) ->
+        Just (stmts1, ElseToken : restTokens3) ->
           -- Parse the 'else' block as a single statement.
-          case parseSingleStatement restTokens3 of
+          case parseSingleStm restTokens3 of
             -- Successfully parsed single 'else' statement.
             Just (stmts2, restTokens4) ->
               -- Parse additional statements following the 'if-then-else'.
               case parseStatement restTokens4 of
                 -- Successfully parsed additional statements.
                 Just (additionalStmts, finalRestTokens) ->
-                    Just ([If expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
+                    Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
                 -- Failed to parse additional statements.
                 Nothing -> Nothing
             -- Failed to parse 'else' block.
