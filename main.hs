@@ -1,5 +1,3 @@
-import Data.List (sortBy)
-import Data.Char 
 import Types
 import AuxFunctions
 import Assembler

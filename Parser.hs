@@ -70,8 +70,6 @@ parseAexpOrBexpOrParen tokens =
       Just (expr, rest) -> Just (AexpBexp expr, rest)
       Nothing -> Nothing
 
-
-
 parseLeOrBexp :: [Token] -> Maybe (Bexp, [Token])
 parseLeOrBexp tokens 
   = case parseAexpOrBexpOrParen tokens of
@@ -134,9 +132,6 @@ parseBoolOperations tokens
 
 
 ----- Statements ------------------------------
-
-
-
 parseSingleStm :: [Token] -> Maybe ([Stm], [Token])
 parseSingleStm (VarToken varName : AssignToken : rest)
   = case parseOperationsOrParen rest of
@@ -160,17 +155,14 @@ parseStatement (VarToken varName : AssignToken : rest)
 ---------------------------- IF Stm ----------------------------------
 
 parseStatement (IfToken : restTokens1) =
-  -- Parse the condition of the 'if' statement.
   case parseBoolOperations restTokens1 of
     -- Case when 'then' block is explicitly started with an open parenthesis '('.
     Just (expr, ThenToken : LeftParToken : restTokens2) ->
       case parseStatement restTokens2 of
-        -- Case when both 'then' and 'else' blocks are explicitly enclosed in parentheses.
         Just (stmts1, RightParToken : ElseToken : LeftParToken : restTokens3) ->
           case parseStatement restTokens3 of
             Just (stmts2, RightParToken : restTokens4) ->
-              -- Parse additional statements following the 'if-then-else'.
-              case parseStatement restTokens4 of
+              case parseStatement restTokens4 of -- Additional statements following the 'if-then-else'.
                 Just (additionalStmts, finalRestTokens) ->
                     Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
                 Nothing -> Nothing
@@ -188,52 +180,33 @@ parseStatement (IfToken : restTokens1) =
     Just (expr, ThenToken : restTokens2) ->
       -- Parse the 'then' block as a single statement.
       case parseSingleStm restTokens2 of
-        -- Case when 'else' block starts with an open parenthesis after a single 'then' statement.
         Just (stmts1, ElseToken : LeftParToken : restTokens3) ->
-          -- Parse the 'else' block.
           case parseStatement restTokens3 of
-            -- Successfully parsed 'else' block, expecting closing parenthesis.
-            Just (stmts2, RightParToken: SemicolonToken : restTokens4) -> 
-              -- Parse additional statements following the 'if-then-else'.
-              case parseStatement restTokens4 of
-                -- Successfully parsed additional statements.
+            Just (stmts2, RightParToken: SemicolonToken : restTokens4) -> -- Parsed else between parentheses, followed by semicolon.
+              case parseStatement restTokens4 of -- Additional statements following the 'if-then-else'.
                 Just (additionalStmts, finalRestTokens) ->
                     Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
-                -- Failed to parse additional statements.
                 Nothing -> Nothing
-            -- Failed to parse 'else' block.
             Nothing -> Nothing
         -- Case when 'else' follows directly after a single 'then' statement.
         Just (stmts1, ElseToken : restTokens3) ->
-          -- Parse the 'else' block as a single statement.
           case parseSingleStm restTokens3 of
-            -- Successfully parsed single 'else' statement.
             Just (stmts2, restTokens4) ->
-              -- Parse additional statements following the 'if-then-else'.
-              case parseStatement restTokens4 of
-                -- Successfully parsed additional statements.
+              case parseStatement restTokens4 of -- Additional statements following the 'if-then-else'.
                 Just (additionalStmts, finalRestTokens) ->
                     Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
-                -- Failed to parse additional statements.
                 Nothing -> Nothing
-            -- Failed to parse 'else' block.
             Nothing -> Nothing
-        -- Failed to parse 'then' block as a single statement.
         Nothing -> Nothing
-    -- Failed to parse the condition or didn't find the expected 'ThenTok'.
     _ -> Nothing
 
 ---------------------------- WHILE Stm ----------------------------------
 parseStatement (WhileToken : restTokens1) =
-  -- Parse the condition of the 'while' statement.
   case parseBoolOperations restTokens1 of
-    -- Case when 'do' block is explicitly started with an open parenthesis '('.
-    Just (expr, DoToken : LeftParToken : restTokens2) ->
+    Just (expr, DoToken : LeftParToken : restTokens2) -> -- Case when 'do' block is explicitly enclosed in parentheses.
       case parseStatement restTokens2 of
-        -- Case when 'do' block is explicitly enclosed in parentheses.
         Just (stmts, RightParToken : SemicolonToken : restTokens3) ->
-          -- Parse additional statements following the 'while-do'.
-          case parseStatement restTokens3 of
+          case parseStatement restTokens3 of -- Additional statements following the 'while-do'.
             Just (additionalStmts, finalRestTokens) ->
                 Just ([WhileStm expr stmts] ++ additionalStmts, finalRestTokens)
             Nothing -> Nothing
@@ -241,20 +214,13 @@ parseStatement (WhileToken : restTokens1) =
 
     -- Case when 'do' block is not explicitly started with an open parenthesis.
     Just (expr, DoToken : restTokens2) ->
-      -- Parse the 'do' block as a single statement.
       case parseSingleStm restTokens2 of
-        -- Successfully parsed single 'do' statement.
         Just (stmts, restTokens3) ->
-          -- Parse additional statements following the 'while-do'.
-          case parseStatement restTokens3 of
-            -- Successfully parsed additional statements.
+          case parseStatement restTokens3 of -- Additional statements following the 'while-do'.
             Just (additionalStmts, finalRestTokens) ->
                 Just ([WhileStm expr stmts] ++ additionalStmts, finalRestTokens)
-            -- Failed to parse additional statements.
             Nothing -> Nothing
-        -- Failed to parse 'do' block.
         Nothing -> Nothing
-    -- Failed to parse the condition or didn't find the expected 'DoTok'.
     _ -> Nothing
 
 parseStatement tokens = Just ([], tokens) 
