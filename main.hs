@@ -66,7 +66,7 @@ run ((Neg):code, stack, state) = run (code, neg stack, state)
 run ((Fetch var):code, stack, state) = run (code, (fetchElem var stack state), state)
 run ((Store var):code, stack, state) = run (code, tail stack, storeElem var stack state)
 run ((Noop):code, stack, state) = run (code, stack, state) -- Don't need function for this
-run ((Branch code1 code2):code, stack, state) = run (branch code1 code2 stack, tail stack, state)
+run ((Branch code1 code2):code, stack, state) = run (branch code1 code2 stack ++ code, tail stack, state)
 run ((Loop code1 code2):code, stack, state) = run (loop code1 code2 ++ code, stack, state)
 
 pushElem :: Integer -> Stack -> Stack
@@ -116,7 +116,6 @@ neg ((BoolValue elem):stack)
   | elem = (BoolValue False):stack
   | otherwise = (BoolValue True):stack
 neg _ = error "Run-time error"
-
 
 branch :: Code -> Code -> Stack -> Code
 branch code1 code2 ((BoolValue elem):stack)
@@ -432,7 +431,14 @@ parseStatement (IfToken : restTokens1) =
                     Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
                 Nothing -> Nothing
             Nothing -> Nothing
-        Nothing -> Nothing
+        Just (stmts1, RightParToken : ElseToken : restTokens3) ->
+          case parseSingleStm restTokens3 of
+            Just (stmts2, restTokens4) ->
+              case parseStatement restTokens4 of
+                Just (additionalStmts, finalRestTokens) ->
+                    Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
+                Nothing -> Nothing
+            Nothing -> Nothing
 
     -- Case when 'then' block is not explicitly started with an open parenthesis.
     Just (expr, ThenToken : restTokens2) ->
@@ -561,8 +567,8 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- testParser "x := 0 - 2;" == ("","x=-2")
 -- testParser "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;" == ("","y=2")
 -- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);" == ("","x=1")   ---- not passing
--- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")    ---- not passing
--- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")   -----not passing
+-- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
+-- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
 -- testParser "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;" == ("","x=34,y=68") ----not passing
 -- testParser "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;" == ("","x=34") ----not passing
 -- testParser "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;" == ("","x=1")
