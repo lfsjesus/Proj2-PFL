@@ -1,5 +1,6 @@
 import Data.List (sortBy)
 import Data.Char 
+import Debug.Trace
 -- PFL 2023/24 - Haskell practical assignment quickstart
 -- Updated on 15/12/2023
 
@@ -408,7 +409,7 @@ parseStatement (VarToken varName : AssignToken : rest)
       Just (expr, (SemicolonToken : rest2)) -> 
         case parseStatement rest2 of
           Just (stms, rest3) -> 
-            Just ([AssignStm varName expr] ++ stms, rest3)
+            Just (AssignStm varName expr : stms, rest3)
           Nothing ->
             Just ([AssignStm varName expr], rest2)
       _ -> Nothing  
