@@ -186,9 +186,9 @@ data Token
 compA :: Aexp -> Code
 compA (Num elem) = [Push elem]
 compA (Var varName) = [Fetch varName]
-compA (AddAexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Add]
-compA (SubAexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Sub]
-compA (MultAexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Mult]
+compA (AddAexp elem1 elem2) = compA elem2 ++ compA elem1 ++ [Add]
+compA (SubAexp elem1 elem2) = compA elem2 ++ compA elem1 ++ [Sub]
+compA (MultAexp elem1 elem2) = compA elem2++ compA elem1 ++ [Mult]
 
 -- compB
 compB :: Bexp -> Code
@@ -472,11 +472,50 @@ parseStatement (IfToken : restTokens1) =
     -- Failed to parse the condition or didn't find the expected 'ThenTok'.
     _ -> Nothing
 
+---------------------------- WHILE Stm ----------------------------------
+parseStatement (WhileToken : restTokens1) =
+  -- Parse the condition of the 'while' statement.
+  case parseBoolOperations restTokens1 of
+    -- Case when 'do' block is explicitly started with an open parenthesis '('.
+    Just (expr, DoToken : LeftParToken : restTokens2) ->
+      case parseStatement restTokens2 of
+        -- Case when 'do' block is explicitly enclosed in parentheses.
+        Just (stmts, RightParToken : restTokens3) ->
+          -- Parse additional statements following the 'while-do'.
+          case parseStatement restTokens3 of
+            Just (additionalStmts, finalRestTokens) ->
+                Just ([WhileStm expr stmts] ++ additionalStmts, finalRestTokens)
+            Nothing -> Nothing
+        Nothing -> Nothing
 
+    -- Case when 'do' block is not explicitly started with an open parenthesis.
+    Just (expr, DoToken : restTokens2) ->
+      -- Parse the 'do' block as a single statement.
+      case parseSingleStm restTokens2 of
+        -- Successfully parsed single 'do' statement.
+        Just (stmts, restTokens3) ->
+          -- Parse additional statements following the 'while-do'.
+          case parseStatement restTokens3 of
+            -- Successfully parsed additional statements.
+            Just (additionalStmts, finalRestTokens) ->
+                Just ([WhileStm expr stmts] ++ additionalStmts, finalRestTokens)
+            -- Failed to parse additional statements.
+            Nothing -> Nothing
+        -- Failed to parse 'do' block.
+        Nothing -> Nothing
+    -- Failed to parse the condition or didn't find the expected 'DoTok'.
+    _ -> Nothing
 
+parseStatement tokens = Nothing
 
--- parse :: String -> Program
--- parse = buildData . myLexer
+buildData :: [Token] -> Program
+buildData tokens = 
+  case parseStatement tokens of
+    Just (stms, []) -> stms
+    _ -> error "Error parsing program"
+
+parse :: String -> Program
+parse = buildData . myLexer
 
 
 -- To help you test your assembler
@@ -512,20 +551,20 @@ testAssembler code = (stack2Str stack, state2Str state)
 -- parse :: String -> Program
 
 -- To help you test your parser
---testParser :: String -> (String, String)
---testParser programCode = (stack2Str stack, state2Str state)
---  where (_,stack,state) = run(compile (parse programCode), createEmptyStack, createEmptyState)
+testParser :: String -> (String, String)
+testParser programCode = (stack2Str stack, state2Str state)
+  where (_,stack,state) = run(compile (parse programCode), createEmptyStack, createEmptyState)
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
 -- testParser "x := 0 - 2;" == ("","x=-2")
 -- testParser "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;" == ("","y=2")
--- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);" == ("","x=1")
--- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
--- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
--- testParser "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;" == ("","x=34,y=68")
--- testParser "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;" == ("","x=34")
+-- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);" == ("","x=1")   ---- not passing
+-- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")    ---- not passing
+-- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")   -----not passing
+-- testParser "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;" == ("","x=34,y=68") ----not passing
+-- testParser "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;" == ("","x=34") ----not passing
 -- testParser "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;" == ("","x=1")
 -- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
--- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
+-- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1") ----not passing
