@@ -149,11 +149,11 @@ storeElem _ [] state = error "Run-time error" -- stack is empty
 -- Part 2 -----------------------------------------------------------------------------------------------------------
 
 
-data Aexp = Num Integer | Var String| AddAexp Aexp Aexp | SubAexp Aexp Aexp | MultAexp Aexp Aexp deriving Show
+data Aexp = Num Integer | Var String| AddAexp Aexp Aexp | SubAexp Aexp Aexp | MultAexp Aexp Aexp deriving (Show, Eq)
 
-data Bexp = BoolBexp Bool | NegBexp Bexp | EquNumBexp Aexp Aexp | EquBoolBexp Bexp Bexp | LeNumBexp Aexp Aexp | AndBexp Bexp Bexp | NumBexp Integer | VarBexp String deriving Show 
+data Bexp = BoolBexp Bool | NegBexp Bexp | EquNumBexp Bexp Bexp | EquBoolBexp Bexp Bexp | LeNumBexp Bexp Bexp | AndBexp Bexp Bexp | AexpBexp Aexp deriving (Show,Eq) 
 
-data Stm = AssignStm String Aexp | IfStm Bexp [Stm] [Stm] | WhileStm Bexp [Stm] | NoopStm | Seq [Stm] deriving Show 
+data Stm = AssignStm String Aexp | IfStm Bexp [Stm] [Stm] | WhileStm Bexp [Stm] | NoopStm deriving Show 
 
 type Program = [Stm]
 
@@ -195,12 +195,11 @@ compB :: Bexp -> Code
 compB (BoolBexp elem)
   | elem = [Tru]
   | otherwise = [Fals]
-compB (NumBexp elem) = [Push elem]
-compB (VarBexp varName) = [Fetch varName]
+compB (AexpBexp elem) = compA elem
 compB (NegBexp elem) = compB elem ++ [Neg]
-compB (EquNumBexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Equ]
+compB (EquNumBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [Equ]
 compB (EquBoolBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [Equ]
-compB (LeNumBexp elem1 elem2) = compA elem1 ++ compA elem2 ++ [Le]
+compB (LeNumBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [Le]
 compB (AndBexp elem1 elem2) = compB elem1 ++ compB elem2 ++ [And]
 
 -- compile
@@ -210,7 +209,6 @@ compile ((AssignStm varName elem):rest) = compA elem ++ [Store varName] ++ compi
 compile ((IfStm bool stm1 stm2):rest) = compB bool ++ [Branch (compile stm1) (compile stm2)] ++ compile rest
 compile ((WhileStm bool stm):rest) = [Loop (compB bool) (compile stm)] ++ compile rest
 compile ((NoopStm):rest) = [Noop] ++ compile rest
-compile ((Seq stm):rest) = compile stm ++ compile rest
 -- lexer
 
 
@@ -262,22 +260,18 @@ buildData tokens =
   in stm : buildData restTokens
 -}
 
-parseAexp :: [Token] -> Maybe (Aexp, [Token])
-parseAexp (NumToken num : rest)
-  = Just (Num num, rest)
-parseAexp (VarToken varName : rest)
-  = Just (Var varName, rest)
-parseAexp tokens
-  = Nothing
-
--- parentesis
 parseAexpOrParen :: [Token] -> Maybe (Aexp, [Token])
+parseAexpOrParen (NumToken num : rest)
+  = Just (Num num, rest)
+parseAexpOrParen (VarToken varName : rest)
+  = Just (Var varName, rest)
 parseAexpOrParen (LeftParToken : rest)
-  = case parseAexpOrParen rest of
-      Just (expr, (RightParToken : rest2)) -> Just (expr, rest2)
-      _ -> Nothing
-parseAexpOrParen tokens
-  = parseAexp tokens
+  = case parseOperationsOrParen rest of
+      Just (expr, (RightParToken : rest2)) -> 
+        Just (expr, rest2)
+      Just _ -> Nothing
+      Nothing -> Nothing
+parseAexpOrParen _ = Nothing
 
 parseMultOrAexpOrParen :: [Token] -> Maybe (Aexp, [Token])
 parseMultOrAexpOrParen tokens 
@@ -287,7 +281,10 @@ parseMultOrAexpOrParen tokens
         Just (expr2, rest2) -> 
             Just (MultAexp expr1 expr2, rest2)
         Nothing -> Nothing
-      result -> result
+      Just (expr, (SemicolonToken : rest)) -> 
+        Just (expr, (SemicolonToken : rest))
+      result -> result  
+        
 
 parseOperationsOrParen :: [Token] -> Maybe (Aexp, [Token])
 parseOperationsOrParen tokens 
@@ -302,35 +299,47 @@ parseOperationsOrParen tokens
         Just (expr2, rest2) -> 
             Just (SubAexp expr1 expr2, rest2)
         Nothing -> Nothing
+      Just (expr, (SemicolonToken : rest)) -> 
+        Just (expr, (SemicolonToken : rest))
       result -> result
 
-
-parseBexp :: [Token] -> Maybe (Bexp, [Token])
-parseBexp (LeftParToken : rest)
+----- Boolean Operations ------------------------------
+  
+parseBexpOrParen :: [Token] -> Maybe (Bexp, [Token])
+parseBexpOrParen (LeftParToken : rest)
   = case parseBoolOperations rest of
       Just (expr, (RightParToken : rest2)) -> 
         Just (expr, rest2)
-      _ -> Nothing
+      Just _ -> Nothing
       Nothing -> Nothing
-parseBexp (TrueToken : rest)
+parseBexpOrParen (TrueToken : rest)
   = Just (BoolBexp True, rest)
-parseBexp (FalseToken : rest)
+parseBexpOrParen (FalseToken : rest)
   = Just (BoolBexp False, rest)
-parseBexp (NumToken num : rest)
-  = Just (NumBexp num, rest)
-parseBexp (VarToken varName : rest)
-  = Just (VarBexp varName, rest)
-parseBexp _ = Nothing
+parseBexpOrParen _ = Nothing
+
+
+parseAexpOrBexpOrParen :: [Token] -> Maybe (Bexp, [Token])
+parseAexpOrBexpOrParen tokens =
+  case parseBexpOrParen tokens of
+    Just (expr, rest) -> Just (expr, rest)
+    Nothing -> case parseOperationsOrParen tokens of
+      Just (expr, rest) -> Just (AexpBexp expr, rest)
+      Nothing -> Nothing
+
+
 
 parseLeOrBexp :: [Token] -> Maybe (Bexp, [Token])
 parseLeOrBexp tokens 
-  = case parseBexp tokens of
+  = case parseAexpOrBexpOrParen tokens of
       Just (expr1, (LeEquToken : rest)) -> 
-        case parseBexp rest of
+        case parseLeOrBexp rest of
         Just (expr2, rest2) -> 
             Just (LeNumBexp expr1 expr2, rest2)
         Nothing -> Nothing
-      result -> result
+      Just (expr, (SemicolonToken : rest)) -> 
+        Just (expr, (SemicolonToken : rest))
+      result -> result  
 
 parseLeOrEquOrBexp :: [Token] -> Maybe (Bexp, [Token])
 parseLeOrEquOrBexp tokens 
@@ -340,17 +349,21 @@ parseLeOrEquOrBexp tokens
         Just (expr2, rest2) -> 
             Just (EquNumBexp expr1 expr2, rest2)
         Nothing -> Nothing
+      Just (expr, (SemicolonToken : rest)) ->
+        Just (expr, (SemicolonToken : rest))
       result -> result
 
 parseLeOrEquOrNegOrBexp :: [Token] -> Maybe (Bexp, [Token])
+parseLeOrEquOrNegOrBexp (NegToken : rest)
+  = case parseLeOrEquOrBexp rest of
+      Just (expr, rest2) -> 
+        Just (NegBexp expr, rest2)
+      result -> result
 parseLeOrEquOrNegOrBexp tokens 
-  = case tokens of
-      (NegToken : rest) -> 
-        case parseLeOrEquOrNegOrBexp rest of
-        Just (expr, rest2) -> 
-            Just (NegBexp expr, rest2)
-        Nothing -> Nothing
-      _ -> parseLeOrEquOrBexp tokens
+  = case parseLeOrEquOrBexp tokens of
+      Just (expr, rest) -> Just (expr, rest)
+      result -> result
+         
 
 parseLeOrEquOrNegOrBoolEquOrBexp :: [Token] -> Maybe (Bexp, [Token])
 parseLeOrEquOrNegOrBoolEquOrBexp tokens 
@@ -360,6 +373,8 @@ parseLeOrEquOrNegOrBoolEquOrBexp tokens
         Just (expr2, rest2) -> 
             Just (EquBoolBexp expr1 expr2, rest2)
         Nothing -> Nothing
+      Just (expr, (SemicolonToken : rest)) -> 
+        Just (expr, (SemicolonToken : rest))
       result -> result
 
 parseBoolOperations :: [Token] -> Maybe (Bexp, [Token])
@@ -370,34 +385,94 @@ parseBoolOperations tokens
         Just (expr2, rest2) -> 
             Just (AndBexp expr1 expr2, rest2)
         Nothing -> Nothing
+      Just (expr, (SemicolonToken : rest)) ->
+        Just (expr, (SemicolonToken : rest))
       result -> result
 
-parseSequence :: [Token] -> Maybe ([Stm], [Token])
-parseSequence tokens = loop tokens []
-  where 
-    loop [] acc = Just (reverse acc, [])
-    loop (ElseToken : rest) acc = Just (reverse acc, ElseToken : rest)
-    loop tokens acc = case parseStm tokens of
-      Just (stm, rest) -> case rest of
-        (SemicolonToken : rest2) -> loop rest2 (stm : acc)
-        _ -> Just (reverse (stm : acc), rest)
-      Nothing -> Nothing
 
-parseElse :: [Token] -> Maybe ([Stm], [Token])
-parseElse tokens = loop tokens []
-  where 
-    loop [] acc = Nothing
-    loop (RightParToken : SemicolonToken : rest) acc = Just (reverse acc, rest)
-    loop tokens acc = case parseStm tokens of
-      Just (stm, rest) -> case rest of
-        (SemicolonToken : rest2) -> loop rest2 (stm : acc)
-        _ -> Nothing
-      Nothing -> Nothing
+----- Statements ------------------------------
 
-parseStatement :: [Token] -> Maybe (Stm, [Token])
-parseStatement tokens =
-  case tokens of 
-    
+
+
+parseSingleStm :: [Token] -> Maybe ([Stm], [Token])
+parseSingleStm (VarToken varName : AssignToken : rest)
+  = case parseOperationsOrParen rest of
+      Just (expr, (SemicolonToken : rest2)) -> 
+        Just ([AssignStm varName expr], rest2)
+      _ -> Nothing
+
+parseStatement :: [Token] -> Maybe ([Stm], [Token])
+parseStatement [] = Just ([], [])
+parseStatement (VarToken varName : AssignToken : rest)
+  = case parseOperationsOrParen rest of
+      Just (expr, (SemicolonToken : rest2)) -> 
+        case parseStatement rest2 of
+          Just (stms, rest3) -> 
+            Just ([AssignStm varName expr] ++ stms, rest3)
+          Nothing ->
+            Just ([AssignStm varName expr], rest2)
+      _ -> Nothing  
+      
+---------------------------- IF Stm ----------------------------------
+
+parseStatement (IfToken : restTokens1) =
+  -- Parse the condition of the 'if' statement.
+  case parseBoolOperations restTokens1 of
+    -- Case when 'then' block is explicitly started with an open parenthesis '('.
+    Just (expr, ThenToken : LeftParToken : restTokens2) ->
+      case parseStatement restTokens2 of
+        -- Case when both 'then' and 'else' blocks are explicitly enclosed in parentheses.
+        Just (stmts1, RightParToken : ElseToken : LeftParToken : restTokens3) ->
+          case parseStatement restTokens3 of
+            Just (stmts2, RightParToken : restTokens4) ->
+              -- Parse additional statements following the 'if-then-else'.
+              case parseStatement restTokens4 of
+                Just (additionalStmts, finalRestTokens) ->
+                    Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
+                Nothing -> Nothing
+            Nothing -> Nothing
+        Nothing -> Nothing
+
+    -- Case when 'then' block is not explicitly started with an open parenthesis.
+    Just (expr, ThenToken : restTokens2) ->
+      -- Parse the 'then' block as a single statement.
+      case parseSingleStatement restTokens2 of
+        -- Case when 'else' block starts with an open parenthesis after a single 'then' statement.
+        Just (stmts1, ElseToken : LeftParToken : restTokens3) ->
+          -- Parse the 'else' block.
+          case parseStatement restTokens3 of
+            -- Successfully parsed 'else' block, expecting closing parenthesis.
+            Just (stmts2, RightParToken:restTokens4) ->
+              -- Parse additional statements following the 'if-then-else'.
+              case parseStatement restTokens4 of
+                -- Successfully parsed additional statements.
+                Just (additionalStmts, finalRestTokens) ->
+                    Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
+                -- Failed to parse additional statements.
+                Nothing -> Nothing
+            -- Failed to parse 'else' block.
+            Nothing -> Nothing
+        -- Case when 'else' follows directly after a single 'then' statement.
+        Just (stmts1, ElseTok : restTokens3) ->
+          -- Parse the 'else' block as a single statement.
+          case parseSingleStatement restTokens3 of
+            -- Successfully parsed single 'else' statement.
+            Just (stmts2, restTokens4) ->
+              -- Parse additional statements following the 'if-then-else'.
+              case parseStatement restTokens4 of
+                -- Successfully parsed additional statements.
+                Just (additionalStmts, finalRestTokens) ->
+                    Just ([If expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
+                -- Failed to parse additional statements.
+                Nothing -> Nothing
+            -- Failed to parse 'else' block.
+            Nothing -> Nothing
+        -- Failed to parse 'then' block as a single statement.
+        Nothing -> Nothing
+    -- Failed to parse the condition or didn't find the expected 'ThenTok'.
+    _ -> Nothing
+
+
 
 
 -- parse :: String -> Program
