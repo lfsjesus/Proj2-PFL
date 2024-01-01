@@ -39,16 +39,58 @@ Miguel Diogo Andrade Rocha - up202108720 - 50%
  ```
 
 ### Executing Instructions:
-- The core of the interpreter's execution is encapsulated within the `run` function. This essential component is responsible for interpreting and executing the instructions, represented by the `Code` type. The execution engine manages the manipulation of the `Stack` and `State` as per the provided instructions.
+- The core of the interpreter's execution is encapsulated within the `run` function. This essential component is responsible for interpreting and executing the instructions, represented by the `Code` type. 
 
 - The `run` function operates by sequentially processing the list of instructions contained within `Code`, one instruction at a time.
 
 ### Stack and State Manipulation
-- For each instruction, we created auxiliary functions 
+- For each instruction, we created auxiliary functions which manipulate the `Stack` and `State` as per the instruction's requirements.
 
-### Function Signature
-- Signature: `run :: (Code, Stack, State) -> (Code, Stack, State)`
-  - Takes input in the form of `(Code, Stack, State)`
-  - Produces output as `(Code, Stack, State)` after each instruction execution.
+- For example, for the `add` instruction, we created:
+
+    ```haskell
+    add :: Stack -> Stack 
+    add ((IntValue elem1):(IntValue elem2):stack) = (IntValue  (elem1 + elem2)):stack
+    add _ = error "Run-time error"
+    ```
+  - This function adds the top two `IntValues` on the stack, replacing them with their sum.
+
+- For the `store` instruction, we created:
+
+     ```haskell
+    storeElem :: String -> Stack -> State -> State
+    storeElem varName ((IntValue elem):stack) state = (varName, (IntValue elem)) : filter ((/= varName) . fst) state
+    storeElem varName ((BoolValue elem):stack) state = (varName, (BoolValue elem)) : filter ((/= varName) . fst) state
+    storeElem _ [] state = error "Run-time error"
+    ```
+   - This function stores the top element of the stack in the state, with the given variable name, updating the state accordingly.
+
+
+### Control Flow Instructions
+- The instructions `branch` and `loop` are used to control the flow of execution. These instructions are used to implement conditional statements and loops, respectively.
+
+- For example, for the `branch` instruction, we created:
+
+    ```haskell
+    branch :: Code -> Code -> Stack -> Code
+    branch code1 code2 ((BoolValue elem):stack)
+    | elem = code1
+    | otherwise = code2
+    branch _ _ _ = error "Run-time error"
+    ```
+  - Combined with the run function, this function evaluates the top element of the stack, and executes the first code block if it's `True`, or the second code block if it's `False`.
+
+
+### Error Handling
+
+- The interpreter is designed to handle errors that may occur during execution, such as `wrong arguments` for instructions.
+
+- These errors are detected by the interpreter, and are reported to the user.
+
+- In these cases, an exception with the string `"Run-time error"` is thrown, and the program is terminated.
+
+
+## Part 2: Compiler And Parser
+
 
 
