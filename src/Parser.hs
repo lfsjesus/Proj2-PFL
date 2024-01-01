@@ -161,10 +161,10 @@ parseStatement (IfToken : restTokens1) =
       case parseStatement restTokens2 of
         Just (stmts1, RightParToken : ElseToken : LeftParToken : restTokens3) ->
           case parseStatement restTokens3 of
-            Just (stmts2, RightParToken : restTokens4) ->
+            Just (stmts2, RightParToken : SemicolonToken: restTokens4) ->
               case parseStatement restTokens4 of -- Additional statements following the 'if-then-else'.
                 Just (additionalStmts, finalRestTokens) ->
-                    Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
+                    Just (IfStm expr stmts1 stmts2 : additionalStmts, finalRestTokens)
                 Nothing -> Nothing
             Nothing -> Nothing
         Just (stmts1, RightParToken : ElseToken : restTokens3) ->
@@ -172,7 +172,7 @@ parseStatement (IfToken : restTokens1) =
             Just (stmts2, restTokens4) ->
               case parseStatement restTokens4 of
                 Just (additionalStmts, finalRestTokens) ->
-                    Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
+                    Just (IfStm expr stmts1 stmts2 : additionalStmts, finalRestTokens)
                 Nothing -> Nothing
             Nothing -> Nothing
 
@@ -185,7 +185,7 @@ parseStatement (IfToken : restTokens1) =
             Just (stmts2, RightParToken: SemicolonToken : restTokens4) -> -- Parsed else between parentheses, followed by semicolon.
               case parseStatement restTokens4 of -- Additional statements following the 'if-then-else'.
                 Just (additionalStmts, finalRestTokens) ->
-                    Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
+                    Just (IfStm expr stmts1 stmts2 : additionalStmts, finalRestTokens)
                 Nothing -> Nothing
             Nothing -> Nothing
         -- Case when 'else' follows directly after a single 'then' statement.
@@ -194,7 +194,7 @@ parseStatement (IfToken : restTokens1) =
             Just (stmts2, restTokens4) ->
               case parseStatement restTokens4 of -- Additional statements following the 'if-then-else'.
                 Just (additionalStmts, finalRestTokens) ->
-                    Just ([IfStm expr stmts1 stmts2] ++ additionalStmts, finalRestTokens)
+                    Just (IfStm expr stmts1 stmts2 : additionalStmts, finalRestTokens)
                 Nothing -> Nothing
             Nothing -> Nothing
         Nothing -> Nothing
@@ -208,7 +208,7 @@ parseStatement (WhileToken : restTokens1) =
         Just (stmts, RightParToken : SemicolonToken : restTokens3) ->
           case parseStatement restTokens3 of -- Additional statements following the 'while-do'.
             Just (additionalStmts, finalRestTokens) ->
-                Just ([WhileStm expr stmts] ++ additionalStmts, finalRestTokens)
+                Just (WhileStm expr stmts : additionalStmts, finalRestTokens)
             Nothing -> Nothing
         Nothing -> Nothing
 
@@ -218,7 +218,7 @@ parseStatement (WhileToken : restTokens1) =
         Just (stmts, restTokens3) ->
           case parseStatement restTokens3 of -- Additional statements following the 'while-do'.
             Just (additionalStmts, finalRestTokens) ->
-                Just ([WhileStm expr stmts] ++ additionalStmts, finalRestTokens)
+                Just (WhileStm expr stmts : additionalStmts, finalRestTokens)
             Nothing -> Nothing
         Nothing -> Nothing
     _ -> Nothing
