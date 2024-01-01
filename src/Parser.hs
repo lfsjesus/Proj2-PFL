@@ -154,71 +154,71 @@ parseStatement (VarToken varName : AssignToken : rest)
       
 ---------------------------- IF Stm ----------------------------------
 
-parseStatement (IfToken : restTokens1) =
-  case parseBoolOperations restTokens1 of
+parseStatement (IfToken : rest) =
+  case parseBoolOperations rest of
     -- Case when 'then' block is explicitly started with an open parenthesis '('.
-    Just (expr, ThenToken : LeftParToken : restTokens2) ->
-      case parseStatement restTokens2 of
-        Just (stmts1, RightParToken : ElseToken : LeftParToken : restTokens3) ->
-          case parseStatement restTokens3 of
-            Just (stmts2, RightParToken : SemicolonToken: restTokens4) ->
-              case parseStatement restTokens4 of -- Additional statements following the 'if-then-else'.
-                Just (additionalStmts, finalRestTokens) ->
-                    Just (IfStm expr stmts1 stmts2 : additionalStmts, finalRestTokens)
+    Just (expr, ThenToken : LeftParToken : rest2) ->
+      case parseStatement rest2 of
+        Just (stmts1, RightParToken : ElseToken : LeftParToken : rest3) ->
+          case parseStatement rest3 of
+            Just (stmts2, RightParToken : SemicolonToken: rest4) ->
+              case parseStatement rest4 of -- Additional statements following the 'if-then-else'.
+                Just (otherStmts, finalRestTokens) ->
+                    Just (IfStm expr stmts1 stmts2 : otherStmts, finalRestTokens)
                 Nothing -> Nothing
             Nothing -> Nothing
-        Just (stmts1, RightParToken : ElseToken : restTokens3) ->
-          case parseSingleStm restTokens3 of
-            Just (stmts2, restTokens4) ->
-              case parseStatement restTokens4 of
-                Just (additionalStmts, finalRestTokens) ->
-                    Just (IfStm expr stmts1 stmts2 : additionalStmts, finalRestTokens)
+        Just (stmts1, RightParToken : ElseToken : rest3) ->
+          case parseSingleStm rest3 of
+            Just (stmts2, rest4) ->
+              case parseStatement rest4 of
+                Just (otherStmts, finalRestTokens) ->
+                    Just (IfStm expr stmts1 stmts2 : otherStmts, finalRestTokens)
                 Nothing -> Nothing
             Nothing -> Nothing
 
     -- Case when 'then' block is not explicitly started with an open parenthesis.
-    Just (expr, ThenToken : restTokens2) ->
+    Just (expr, ThenToken : rest2) ->
       -- Parse the 'then' block as a single statement.
-      case parseSingleStm restTokens2 of
-        Just (stmts1, ElseToken : LeftParToken : restTokens3) ->
-          case parseStatement restTokens3 of
-            Just (stmts2, RightParToken: SemicolonToken : restTokens4) -> -- Parsed else between parentheses, followed by semicolon.
-              case parseStatement restTokens4 of -- Additional statements following the 'if-then-else'.
-                Just (additionalStmts, finalRestTokens) ->
-                    Just (IfStm expr stmts1 stmts2 : additionalStmts, finalRestTokens)
+      case parseSingleStm rest2 of
+        Just (stmts1, ElseToken : LeftParToken : rest3) ->
+          case parseStatement rest3 of
+            Just (stmts2, RightParToken: SemicolonToken : rest4) -> -- Parsed else between parentheses, followed by semicolon.
+              case parseStatement rest4 of -- Additional statements following the 'if-then-else'.
+                Just (otherStmts, finalRestTokens) ->
+                    Just (IfStm expr stmts1 stmts2 : otherStmts, finalRestTokens)
                 Nothing -> Nothing
             Nothing -> Nothing
         -- Case when 'else' follows directly after a single 'then' statement.
-        Just (stmts1, ElseToken : restTokens3) ->
-          case parseSingleStm restTokens3 of
-            Just (stmts2, restTokens4) ->
-              case parseStatement restTokens4 of -- Additional statements following the 'if-then-else'.
-                Just (additionalStmts, finalRestTokens) ->
-                    Just (IfStm expr stmts1 stmts2 : additionalStmts, finalRestTokens)
+        Just (stmts1, ElseToken : rest3) ->
+          case parseSingleStm rest3 of
+            Just (stmts2, rest4) ->
+              case parseStatement rest4 of -- Additional statements following the 'if-then-else'.
+                Just (otherStmts, finalRestTokens) ->
+                    Just (IfStm expr stmts1 stmts2 : otherStmts, finalRestTokens)
                 Nothing -> Nothing
             Nothing -> Nothing
         Nothing -> Nothing
     _ -> Nothing
 
 ---------------------------- WHILE Stm ----------------------------------
-parseStatement (WhileToken : restTokens1) =
-  case parseBoolOperations restTokens1 of
-    Just (expr, DoToken : LeftParToken : restTokens2) -> -- Case when 'do' block is explicitly enclosed in parentheses.
-      case parseStatement restTokens2 of
-        Just (stmts, RightParToken : SemicolonToken : restTokens3) ->
-          case parseStatement restTokens3 of -- Additional statements following the 'while-do'.
-            Just (additionalStmts, finalRestTokens) ->
-                Just (WhileStm expr stmts : additionalStmts, finalRestTokens)
+parseStatement (WhileToken : rest) =
+  case parseBoolOperations rest of
+    Just (expr, DoToken : LeftParToken : rest2) -> -- Case when 'do' block is explicitly enclosed in parentheses.
+      case parseStatement rest2 of
+        Just (stmts, RightParToken : SemicolonToken : rest3) ->
+          case parseStatement rest3 of -- Additional statements following the 'while-do'.
+            Just (otherStmts, finalRestTokens) ->
+                Just (WhileStm expr stmts : otherStmts, finalRestTokens)
             Nothing -> Nothing
         Nothing -> Nothing
 
     -- Case when 'do' block is not explicitly started with an open parenthesis.
-    Just (expr, DoToken : restTokens2) ->
-      case parseSingleStm restTokens2 of
-        Just (stmts, restTokens3) ->
-          case parseStatement restTokens3 of -- Additional statements following the 'while-do'.
-            Just (additionalStmts, finalRestTokens) ->
-                Just (WhileStm expr stmts : additionalStmts, finalRestTokens)
+    Just (expr, DoToken : rest2) ->
+      case parseSingleStm rest2 of
+        Just (stmts, rest3) ->
+          case parseStatement rest3 of -- Additional statements following the 'while-do'.
+            Just (otherStmts, finalRestTokens) ->
+                Just (WhileStm expr stmts : otherStmts, finalRestTokens)
             Nothing -> Nothing
         Nothing -> Nothing
     _ -> Nothing
