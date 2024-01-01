@@ -3,6 +3,7 @@ module Assembler where
 import Types
 
 -- This function executes the given Code until completion, returning the final Code, Stack, and State after the instructions have been executed
+-- It uses several auxiliary functions like pushElem, add, mult, etc. to effectively execute the instructions.
 run :: (Code, Stack, State) -> (Code, Stack, State) 
 run ([], stack, state) = ([], stack, state) 
 run ((Push elem):code, stack, state) = run (code, pushElem elem stack, state)

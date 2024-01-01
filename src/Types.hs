@@ -13,9 +13,11 @@ data StackDataType = IntValue Integer | BoolValue Bool deriving (Show, Eq)
 type Stack = [StackDataType]
 type State = [(String, StackDataType)]
 
+-- This function creates an empty stack.
 createEmptyStack :: Stack
 createEmptyStack = []
 
+-- This function creates an empty state.
 createEmptyState :: State
 createEmptyState = []
 

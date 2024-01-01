@@ -2,15 +2,14 @@ module Compiler where
 
 import Types
 
--- compA 
-compA :: Aexp -> Code
+-- This function compiles an arithmetic expression (Aexp) into a sequence of instructions (Code).
 compA (Num elem) = [Push elem]
 compA (Var varName) = [Fetch varName]
 compA (AddAexp elem1 elem2) = compA elem2 ++ compA elem1 ++ [Add]
 compA (SubAexp elem1 elem2) = compA elem2 ++ compA elem1 ++ [Sub]
-compA (MultAexp elem1 elem2) = compA elem2++ compA elem1 ++ [Mult]
+compA (MultAexp elem1 elem2) = compA elem2 ++ compA elem1 ++ [Mult]
 
--- compB
+-- This function compiles a boolean expression (Bexp) into a sequence of instructions (Code).
 compB :: Bexp -> Code
 compB (BoolBexp elem)
   | elem = [Tru]
@@ -22,7 +21,9 @@ compB (EquBoolBexp elem1 elem2) = compB elem2 ++ compB elem1 ++ [Equ]
 compB (LeNumBexp elem1 elem2) = compB elem2 ++ compB elem1 ++ [Le]
 compB (AndBexp elem1 elem2) = compB elem2 ++ compB elem1 ++ [And]
 
--- compile
+-- This is the main compile function, which compiles a program (list of statements) into a sequence of instructions (Code),
+-- which will then be executed by the run function in Assembler.hs.
+-- It calls compA and compB to compile the arithmetic and boolean expressions, respectively.
 compile :: Program -> Code
 compile [] = []
 compile ((AssignStm varName elem):rest) = compA elem ++ [Store varName] ++ compile rest
