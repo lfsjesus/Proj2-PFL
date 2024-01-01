@@ -86,4 +86,5 @@ runAllTests tests = mapM_ runTest tests
 -- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
 -- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
-
+-- test while with only 1 statement in the do block
+-- testParser "i := 10; while (not(i == 1)) do (i := i - 1;);" == ("","i=1")
