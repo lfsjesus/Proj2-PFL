@@ -159,11 +159,11 @@ We throw a Run-time error if the top two elements of the stack are not `IntValue
 
  Consider this helper function for the lexer, responsible for identifying integers:
 
-    ```haskell
-    numLexer :: String -> [Token]
-    numLexer str = NumToken (read num) : myLexer rest
-        where (num, rest) = span isDigit str
-    ```
+```haskell
+numLexer :: String -> [Token]
+numLexer str = NumToken (read num) : myLexer rest
+    where (num, rest) = span isDigit str
+```
 Using the `span` function, we can identify the longest prefix of the input string that satisfies the given predicate. In this case, we use the `isDigit` function to identify the longest prefix of digits, which corresponds to the integer value. The rest of the string is then processed recursively by the `myLexer` function.
 
 
