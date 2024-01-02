@@ -89,6 +89,16 @@ Miguel Diogo Andrade Rocha - up202108720 - 50%
 
 - In these cases, an exception with the string `"Run-time error"` is thrown, and the program is terminated.
 
+For example, for the `mult` instruction, we created:
+
+```haskell
+mult :: Stack -> Stack 
+mult ((IntValue elem1):(IntValue elem2):stack) = (IntValue (elem1 * elem2)):stack
+mult _ = error "Run-time error"
+```
+
+We throw a Run-time error if the top two elements of the stack are not `IntValues`, since the `mult` instruction is only defined for integers. This is both checking the type of the elements and the number of elements in the stack.
+
 
 ## Part 2: Compiler
 
