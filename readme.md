@@ -155,6 +155,18 @@ We throw a Run-time error if the top two elements of the stack are not `IntValue
  
  - These functions are responsible for identifying the tokens, and recursively calling the `myLexer` function to process the rest of the input string.
 
+ - We used the functions `isDigit`, `isAlpha` and `isSpace` from the `Data.Char` module to identify the type of each character. 
+
+ Consider this helper function for the lexer, responsible for identifying integers:
+
+    ```haskell
+    numLexer :: String -> [Token]
+    numLexer str = NumToken (read num) : myLexer rest
+        where (num, rest) = span isDigit str
+    ```
+Using the `span` function, we can identify the longest prefix of the input string that satisfies the given predicate. In this case, we use the `isDigit` function to identify the longest prefix of digits, which corresponds to the integer value. The rest of the string is then processed recursively by the `myLexer` function.
+
+
 ### Data Types Definition:
 
  - We defined three datas in Haskell to represent expressions and statements of this imperative language:
